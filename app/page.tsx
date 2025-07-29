@@ -11,7 +11,6 @@ import { Separator } from "@/components/ui/separator"
 import { Search, Download, FileText, Loader2, Sparkles, Zap } from "lucide-react"
 import { MoleculeLogo } from "./components/MoleculeLogo"
 import { generateDegradationReportDefinitive } from "./actions/generate-report-definitive"
-import { generatePDF } from "./utils/pdf-generator"
 
 interface DegradationProduct {
   substance: string
@@ -31,6 +30,7 @@ export default function DegradScanApp() {
   const [report, setReport] = useState<DegradationReport | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [cacheStatus, setCacheStatus] = useState<string | null>(null)
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false)
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) return
@@ -55,9 +55,21 @@ export default function DegradScanApp() {
     }
   }
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (!report) return
-    generatePDF(searchTerm, report)
+
+    setIsPdfGenerating(true)
+
+    try {
+      // Dynamic import to avoid SSR issues
+      const { generatePDF } = await import("./utils/pdf-generator")
+      await generatePDF(searchTerm, report)
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error)
+      setError("Erro ao gerar PDF. Tente novamente.")
+    } finally {
+      setIsPdfGenerating(false)
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -202,11 +214,21 @@ export default function DegradScanApp() {
               </div>
               <Button
                 onClick={handleDownloadPDF}
+                disabled={isPdfGenerating}
                 variant="outline"
                 className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white bg-transparent"
               >
-                <Download className="h-4 w-4 mr-2" />
-                Gerar PDF
+                {isPdfGenerating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Gerando...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Gerar PDF
+                  </>
+                )}
               </Button>
             </CardHeader>
             <CardContent>
