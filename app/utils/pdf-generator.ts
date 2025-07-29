@@ -1,176 +1,135 @@
-import jsPDF from "jspdf"
-import "jspdf-autotable"
-
-interface DegradationProduct {
+interface DegradationData {
+  id: string
   substance: string
-  degradationRoute: string
-  environmentalConditions: string
-  toxicityData: string
-}
-
-interface DegradationReport {
-  products: DegradationProduct[]
+  pathway: string
+  products: string[]
+  conditions: string
+  rate: string
+  halfLife: string
+  mechanism: string
   references: string[]
+  environmental_impact: string
+  toxicity: string
+  biodegradability: string
 }
 
-// Extend jsPDF type to include autoTable
-declare module "jspdf" {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF
-  }
-}
-
-export async function generatePDF(searchTerm: string, report: DegradationReport): Promise<void> {
+export async function generatePDF(data: DegradationData[], searchTerm: string): Promise<void> {
   try {
-    // Create new PDF document
+    // Importação dinâmica para evitar problemas de SSR
+    const jsPDF = (await import("jspdf")).default
+    const autoTable = (await import("jspdf-autotable")).default
+
+    // Criar nova instância do PDF
     const doc = new jsPDF()
 
-    // Set document properties
-    doc.setProperties({
-      title: `Relatório de Degradação - ${searchTerm}`,
-      subject: "Análise de Produtos de Degradação",
-      author: "DegradScan",
-      creator: "DegradScan System",
-    })
+    // Configurar fonte
+    doc.setFont("helvetica")
 
-    // Add title
+    // Título
     doc.setFontSize(20)
     doc.setTextColor(40, 40, 40)
-    doc.text("DegradScan", 20, 20)
+    doc.text("DegradScan - Relatório de Análise", 20, 30)
 
-    doc.setFontSize(16)
-    doc.text(`Relatório de Degradação - ${searchTerm}`, 20, 35)
+    // Subtítulo
+    doc.setFontSize(14)
+    doc.setTextColor(80, 80, 80)
+    doc.text(`Substância: ${searchTerm}`, 20, 45)
 
-    // Add generation date
+    // Data
     doc.setFontSize(10)
-    doc.setTextColor(100, 100, 100)
-    doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")}`, 20, 45)
+    doc.setTextColor(120, 120, 120)
+    doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")}`, 20, 55)
 
-    // Reset text color
-    doc.setTextColor(40, 40, 40)
+    let yPosition = 70
 
-    let yPosition = 60
+    // Para cada resultado
+    data.forEach((result, index) => {
+      // Verificar se precisa de nova página
+      if (yPosition > 250) {
+        doc.addPage()
+        yPosition = 30
+      }
 
-    // Add products table if available
-    if (report.products && report.products.length > 0) {
-      doc.setFontSize(14)
-      doc.text("Produtos de Degradação", 20, yPosition)
-      yPosition += 10
+      // Título da seção
+      doc.setFontSize(16)
+      doc.setTextColor(40, 40, 40)
+      doc.text(`${index + 1}. Análise de ${result.substance}`, 20, yPosition)
+      yPosition += 15
 
-      // Prepare table data
-      const tableData = report.products.map((product) => [
-        product.substance || "N/A",
-        product.degradationRoute || "N/A",
-        product.environmentalConditions || "N/A",
-        product.toxicityData || "N/A",
-      ])
+      // Dados principais em tabela
+      const tableData = [
+        ["Via de Degradação", result.pathway],
+        ["Produtos Formados", result.products.join(", ")],
+        ["Condições", result.conditions],
+        ["Taxa de Degradação", result.rate],
+        ["Meia-vida", result.halfLife],
+        ["Mecanismo", result.mechanism],
+        ["Impacto Ambiental", result.environmental_impact],
+        ["Toxicidade", result.toxicity],
+        ["Biodegradabilidade", result.biodegradability],
+      ]
 
-      // Add table using autoTable
-      try {
-        doc.autoTable({
+      // Usar autoTable se disponível, senão usar método manual
+      if (typeof autoTable === "function") {
+        autoTable(doc, {
           startY: yPosition,
-          head: [["Produto", "Via de Degradação", "Condições Ambientais", "Toxicidade"]],
+          head: [["Parâmetro", "Valor"]],
           body: tableData,
           theme: "grid",
           styles: {
-            fontSize: 8,
+            fontSize: 9,
             cellPadding: 3,
-            overflow: "linebreak",
-            halign: "left",
           },
           headStyles: {
-            fillColor: [71, 85, 105],
-            textColor: [255, 255, 255],
-            fontStyle: "bold",
+            fillColor: [70, 130, 180],
+            textColor: 255,
           },
-          columnStyles: {
-            0: { cellWidth: 40 },
-            1: { cellWidth: 45 },
-            2: { cellWidth: 45 },
-            3: { cellWidth: 40 },
+          alternateRowStyles: {
+            fillColor: [245, 245, 245],
           },
           margin: { left: 20, right: 20 },
         })
 
-        yPosition = (doc as any).lastAutoTable.finalY + 20
-      } catch (tableError) {
-        console.warn("AutoTable failed, using manual table:", tableError)
+        yPosition = (doc as any).lastAutoTable.finalY + 15
+      } else {
+        // Método manual se autoTable não estiver disponível
+        doc.setFontSize(10)
+        tableData.forEach(([param, value]) => {
+          doc.setTextColor(60, 60, 60)
+          doc.text(`${param}:`, 20, yPosition)
+          doc.setTextColor(40, 40, 40)
 
-        // Fallback: manual table creation
-        yPosition += 5
-        doc.setFontSize(8)
-
-        // Table headers
-        doc.setFont(undefined, "bold")
-        doc.text("Produto", 20, yPosition)
-        doc.text("Via de Degradação", 60, yPosition)
-        doc.text("Condições", 110, yPosition)
-        doc.text("Toxicidade", 150, yPosition)
-        yPosition += 8
-
-        // Table rows
-        doc.setFont(undefined, "normal")
-        report.products.forEach((product, index) => {
-          if (yPosition > 270) {
-            doc.addPage()
-            yPosition = 20
-          }
-
-          doc.text(product.substance?.substring(0, 25) || "N/A", 20, yPosition)
-          doc.text(product.degradationRoute?.substring(0, 30) || "N/A", 60, yPosition)
-          doc.text(product.environmentalConditions?.substring(0, 25) || "N/A", 110, yPosition)
-          doc.text(product.toxicityData?.substring(0, 20) || "N/A", 150, yPosition)
-          yPosition += 6
+          // Quebrar texto longo
+          const splitValue = doc.splitTextToSize(value, 120)
+          doc.text(splitValue, 80, yPosition)
+          yPosition += splitValue.length * 5 + 2
         })
-
         yPosition += 10
       }
-    }
 
-    // Add references if available
-    if (report.references && report.references.length > 0) {
-      // Check if we need a new page
-      if (yPosition > 200) {
-        doc.addPage()
-        yPosition = 20
+      // Referências
+      if (result.references.length > 0) {
+        doc.setFontSize(12)
+        doc.setTextColor(40, 40, 40)
+        doc.text("Referências:", 20, yPosition)
+        yPosition += 8
+
+        doc.setFontSize(9)
+        doc.setTextColor(80, 80, 80)
+        result.references.forEach((ref, refIndex) => {
+          const refText = `[${refIndex + 1}] ${ref}`
+          const splitRef = doc.splitTextToSize(refText, 170)
+          doc.text(splitRef, 25, yPosition)
+          yPosition += splitRef.length * 4 + 3
+        })
+        yPosition += 10
       }
+    })
 
-      doc.setFontSize(14)
-      doc.text("Referências Bibliográficas", 20, yPosition)
-      yPosition += 10
-
-      doc.setFontSize(9)
-      report.references.forEach((reference, index) => {
-        if (yPosition > 270) {
-          doc.addPage()
-          yPosition = 20
-        }
-
-        const referenceText = `${index + 1}. ${reference}`
-        const splitText = doc.splitTextToSize(referenceText, 170)
-        doc.text(splitText, 20, yPosition)
-        yPosition += splitText.length * 4 + 2
-      })
-    }
-
-    // Add footer
-    const pageCount = doc.getNumberOfPages()
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i)
-      doc.setFontSize(8)
-      doc.setTextColor(100, 100, 100)
-      doc.text(
-        `DegradScan - Página ${i} de ${pageCount}`,
-        doc.internal.pageSize.width / 2,
-        doc.internal.pageSize.height - 10,
-        { align: "center" },
-      )
-    }
-
-    // Save the PDF
+    // Salvar o PDF
     doc.save(`degradscan-${searchTerm.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}.pdf`)
   } catch (error) {
-    console.error("Erro detalhado ao gerar PDF:", error)
-    throw new Error(`Falha na geração do PDF: ${error instanceof Error ? error.message : "Erro desconhecido"}`)
+    console.error("Erro ao gerar PDF:", error)
+    throw new Error("Falha na geração do PDF")
   }
 }
