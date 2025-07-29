@@ -1,5 +1,22 @@
-import { jsPDF } from "jspdf"
-import "jspdf-autotable"
+// Import jsPDF with proper typing for production
+let jsPDF: any
+let autoTable: any
+
+async function loadPDFLibraries() {
+  if (typeof window === "undefined") {
+    throw new Error("PDF generation only works in browser environment")
+  }
+
+  if (!jsPDF) {
+    const jsPDFModule = await import("jspdf")
+    jsPDF = jsPDFModule.jsPDF || jsPDFModule.default
+
+    // Load autoTable plugin
+    await import("jspdf-autotable")
+  }
+
+  return jsPDF
+}
 
 interface DegradationProduct {
   substance: string
@@ -13,15 +30,16 @@ interface DegradationReport {
   references: string[]
 }
 
-export async function generatePDF(substanceName: string, report: DegradationReport) {
+export async function generatePDF(substanceName: string, report: DegradationReport): Promise<void> {
   try {
-    // Extend jsPDF type
-    interface ExtendedJsPDF extends jsPDF {
-      autoTable: (options: any) => ExtendedJsPDF
-      lastAutoTable?: { finalY: number }
+    // Load PDF libraries dynamically
+    const PDFClass = await loadPDFLibraries()
+
+    if (!PDFClass) {
+      throw new Error("Failed to load PDF library")
     }
 
-    const doc = new jsPDF("portrait", "mm", "a4") as ExtendedJsPDF
+    const doc = new PDFClass("portrait", "mm", "a4")
 
     // A4 dimensions: 210 x 297 mm
     const pageWidth = 210
@@ -134,87 +152,139 @@ export async function generatePDF(substanceName: string, report: DegradationRepo
       ]
     })
 
-    // Table configuration with precise measurements for A4
-    doc.autoTable({
-      head: [["Produto de Degradação", "Via de Degradação", "Condições Ambientais", "Dados de Toxicidade"]],
-      body: tableData,
-      startY: 75,
-      styles: {
-        fontSize: 8,
-        cellPadding: 2,
-        overflow: "linebreak",
-        cellWidth: "wrap",
-        valign: "top",
-        halign: "left",
-        lineColor: [128, 128, 128],
-        lineWidth: 0.1,
-        textColor: [0, 0, 0],
-        font: "helvetica",
-        fontStyle: "normal",
-      },
-      headStyles: {
-        fillColor: [59, 130, 246],
-        textColor: [255, 255, 255],
-        fontStyle: "bold",
-        fontSize: 9,
-        halign: "center",
-        valign: "middle",
-        cellPadding: 3,
-        minCellHeight: 12,
-      },
-      alternateRowStyles: {
-        fillColor: [248, 250, 252],
-      },
-      columnStyles: {
-        0: {
-          cellWidth: 28,
+    // Check if autoTable is available
+    if (typeof doc.autoTable === "function") {
+      // Table configuration with precise measurements for A4
+      doc.autoTable({
+        head: [["Produto de Degradação", "Via de Degradação", "Condições Ambientais", "Dados de Toxicidade"]],
+        body: tableData,
+        startY: 75,
+        styles: {
           fontSize: 8,
+          cellPadding: 2,
+          overflow: "linebreak",
+          cellWidth: "wrap",
+          valign: "top",
+          halign: "left",
+          lineColor: [128, 128, 128],
+          lineWidth: 0.1,
+          textColor: [0, 0, 0],
+          font: "helvetica",
+          fontStyle: "normal",
+        },
+        headStyles: {
+          fillColor: [59, 130, 246],
+          textColor: [255, 255, 255],
           fontStyle: "bold",
-          overflow: "linebreak",
+          fontSize: 9,
+          halign: "center",
+          valign: "middle",
+          cellPadding: 3,
+          minCellHeight: 12,
         },
-        1: {
-          cellWidth: 32,
-          fontSize: 8,
-          overflow: "linebreak",
+        alternateRowStyles: {
+          fillColor: [248, 250, 252],
         },
-        2: {
-          cellWidth: 36,
-          fontSize: 8,
-          overflow: "linebreak",
+        columnStyles: {
+          0: {
+            cellWidth: 28,
+            fontSize: 8,
+            fontStyle: "bold",
+            overflow: "linebreak",
+          },
+          1: {
+            cellWidth: 32,
+            fontSize: 8,
+            overflow: "linebreak",
+          },
+          2: {
+            cellWidth: 36,
+            fontSize: 8,
+            overflow: "linebreak",
+          },
+          3: {
+            cellWidth: 40,
+            fontSize: 8,
+            overflow: "linebreak",
+          },
         },
-        3: {
-          cellWidth: 40,
-          fontSize: 8,
-          overflow: "linebreak",
-        },
-      },
-      margin: { left: margin, right: margin },
-      tableWidth: 136,
-      showHead: "everyPage",
-      theme: "grid",
-      pageBreak: "auto",
-      rowPageBreak: "avoid",
-      minCellHeight: 8,
-    })
+        margin: { left: margin, right: margin },
+        tableWidth: 136,
+        showHead: "everyPage",
+        theme: "grid",
+        pageBreak: "auto",
+        rowPageBreak: "avoid",
+        minCellHeight: 8,
+      })
+    } else {
+      // Fallback: create simple table without autoTable
+      let currentY = 85
+
+      // Table header
+      doc.setFillColor(59, 130, 246)
+      doc.rect(margin, currentY - 10, contentWidth, 12, "F")
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(9)
+      doc.setFont("helvetica", "bold")
+
+      const headers = ["Produto de Degradação", "Via de Degradação", "Condições Ambientais", "Dados de Toxicidade"]
+      const colWidths = [42, 42, 42, 42]
+      let xPos = margin + 2
+
+      headers.forEach((header, index) => {
+        doc.text(header, xPos, currentY - 3)
+        xPos += colWidths[index]
+      })
+
+      currentY += 5
+
+      // Table rows
+      doc.setTextColor(0, 0, 0)
+      doc.setFontSize(8)
+      doc.setFont("helvetica", "normal")
+
+      report.products.forEach((product, rowIndex) => {
+        if (rowIndex % 2 === 0) {
+          doc.setFillColor(248, 250, 252)
+          doc.rect(margin, currentY - 5, contentWidth, 15, "F")
+        }
+
+        xPos = margin + 2
+        const rowData = [
+          product.substance,
+          product.degradationRoute,
+          product.environmentalConditions,
+          product.toxicityData,
+        ]
+
+        rowData.forEach((data, colIndex) => {
+          const wrappedText = doc.splitTextToSize(data, colWidths[colIndex] - 4)
+          doc.text(wrappedText, xPos, currentY)
+          xPos += colWidths[colIndex]
+        })
+
+        currentY += 15
+      })
+    }
 
     // Get the final Y position after the table
-    const finalY = doc.lastAutoTable?.finalY || 150
+    const finalY = (doc as any).lastAutoTable?.finalY || 85 + 15 * report.products.length + 20
 
     // References section with proper formatting
-    let currentY = finalY + 15
+    let refCurrentY = finalY + 15
 
     // Check if we need a new page for references
-    if (currentY > pageHeight - 60) {
+    if (refCurrentY > pageHeight - 60) {
       doc.addPage()
-      currentY = margin + 10
+      refCurrentY = margin + 10
     }
 
     // References title
     doc.setFontSize(12)
     doc.setFont("helvetica", "bold")
     doc.setTextColor(0, 0, 0)
-    doc.text("Referências Bibliográficas", margin, currentY)
-    currentY += 10
+    doc.text("Referências Bibliográficas", margin, refCurrentY)
+    refCurrentY += 10
 
     // References content with standardized formatting
     doc.setFontSize(8)
@@ -229,14 +299,14 @@ export async function generatePDF(substanceName: string, report: DegradationRepo
 
       // Check if we need a new page
       const textHeight = splitText.length * 3.5
-      if (currentY + textHeight > pageHeight - margin - 15) {
+      if (refCurrentY + textHeight > pageHeight - margin - 15) {
         doc.addPage()
-        currentY = margin + 10
+        refCurrentY = margin + 10
       }
 
       // Add the reference
-      doc.text(splitText, margin, currentY)
-      currentY += textHeight + 3
+      doc.text(splitText, margin, refCurrentY)
+      refCurrentY += textHeight + 3
     })
 
     // Footer with standardized formatting
@@ -272,9 +342,22 @@ export async function generatePDF(substanceName: string, report: DegradationRepo
     const dateString = new Date().toISOString().split("T")[0]
     const filename = `DegradScan_${cleanSubstanceName}_${dateString}.pdf`
 
+    // Use save method
     doc.save(filename)
   } catch (error) {
-    console.error("Erro ao gerar PDF:", error)
-    throw new Error("Falha ao gerar PDF. Verifique se o navegador suporta download de arquivos.")
+    console.error("Erro detalhado ao gerar PDF:", error)
+
+    // More specific error messages
+    if (error instanceof Error) {
+      if (error.message.includes("browser environment")) {
+        throw new Error("PDF só pode ser gerado no navegador. Recarregue a página e tente novamente.")
+      } else if (error.message.includes("Failed to load")) {
+        throw new Error("Erro ao carregar bibliotecas PDF. Verifique sua conexão com a internet.")
+      } else {
+        throw new Error(`Erro ao gerar PDF: ${error.message}`)
+      }
+    } else {
+      throw new Error("Erro desconhecido ao gerar PDF. Tente novamente ou use um navegador diferente.")
+    }
   }
 }
