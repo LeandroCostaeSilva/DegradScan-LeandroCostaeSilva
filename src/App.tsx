@@ -51,8 +51,8 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Background Pattern */}
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\"60\" height=\"60\" viewBox=\"0 0 60 60\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cg fill=\"none\" fillRule=\"evenodd\"%3E%3Cg fill=\"%239C92AC\" fillOpacity=\"0.05\"%3E%3Ccircle cx=\"30\" cy=\"30\" r=\"2\"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-20"></div>
-      
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%239C92AC%22%20fill-opacity%3D%220.05%22%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%222%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-20"></div>
+
       <div className="relative z-10 container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-12">
@@ -68,22 +68,31 @@ function App() {
               </div>
             </div>
           </div>
-          
+
           <p className="text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed mb-6">
             Ferramenta especializada para pesquisa de produtos de degradação de substâncias ativas de medicamentos
           </p>
-          
+
           <div className="flex flex-wrap justify-center gap-3">
             <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 border-blue-500/30 hover:bg-blue-500/30">
               Química Analítica
             </Badge>
-            <Badge variant="secondary" className="bg-purple-500/20 text-purple-300 border-purple-500/30 hover:bg-purple-500/30">
+            <Badge
+              variant="secondary"
+              className="bg-purple-500/20 text-purple-300 border-purple-500/30 hover:bg-purple-500/30"
+            >
               Ciências Farmacêuticas
             </Badge>
-            <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/30">
+            <Badge
+              variant="secondary"
+              className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/30"
+            >
               Controle de Qualidade
             </Badge>
-            <Badge variant="secondary" className="bg-orange-500/20 text-orange-300 border-orange-500/30 hover:bg-orange-500/30">
+            <Badge
+              variant="secondary"
+              className="bg-orange-500/20 text-orange-300 border-orange-500/30 hover:bg-orange-500/30"
+            >
               P&D Farmacêutico
             </Badge>
           </div>
@@ -112,9 +121,9 @@ function App() {
                 className="flex-1 bg-slate-900/50 border-slate-600 text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:ring-blue-500/20"
                 disabled={isLoading}
               />
-              <Button 
-                onClick={handleSearch} 
-                disabled={isLoading || !searchTerm.trim()} 
+              <Button
+                onClick={handleSearch}
+                disabled={isLoading || !searchTerm.trim()}
                 className="px-8 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg"
               >
                 {isLoading ? (
@@ -160,9 +169,9 @@ function App() {
                   Produtos de degradação identificados e suas características
                 </CardDescription>
               </div>
-              <Button 
-                onClick={handleDownloadPDF} 
-                variant="outline" 
+              <Button
+                onClick={handleDownloadPDF}
+                variant="outline"
                 className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white bg-transparent"
               >
                 <Download className="h-4 w-4 mr-2" />
@@ -191,15 +200,13 @@ function App() {
                   </thead>
                   <tbody>
                     {report.products.map((product, index) => (
-                      <tr 
-                        key={index} 
+                      <tr
+                        key={index}
                         className={`${
-                          index % 2 === 0 ? 'bg-slate-800/30' : 'bg-slate-800/50'
+                          index % 2 === 0 ? "bg-slate-800/30" : "bg-slate-800/50"
                         } hover:bg-slate-700/30 transition-colors`}
                       >
-                        <td className="border-b border-slate-700/50 px-6 py-4 text-slate-300">
-                          {product.substance}
-                        </td>
+                        <td className="border-b border-slate-700/50 px-6 py-4 text-slate-300">{product.substance}</td>
                         <td className="border-b border-slate-700/50 px-6 py-4 text-slate-300">
                           {product.degradationRoute}
                         </td>
@@ -226,12 +233,8 @@ function App() {
                 <div className="space-y-3">
                   {report.references.map((reference, index) => (
                     <div key={index} className="flex gap-3">
-                      <span className="text-blue-400 font-medium min-w-[2rem]">
-                        {index + 1}.
-                      </span>
-                      <p className="text-sm text-slate-300 leading-relaxed">
-                        {reference}
-                      </p>
+                      <span className="text-blue-400 font-medium min-w-[2rem]">{index + 1}.</span>
+                      <p className="text-sm text-slate-300 leading-relaxed">{reference}</p>
                     </div>
                   ))}
                 </div>
